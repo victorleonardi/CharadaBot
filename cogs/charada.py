@@ -1,8 +1,10 @@
+from tracemalloc import stop
 from turtle import title
 import discord
 import asyncio
 from random import randint
 from discord.ext import commands
+from difflib import SequenceMatcher
 
 
 class Charada(commands.Cog):
@@ -24,6 +26,9 @@ class Charada(commands.Cog):
         self.user_winner = None
         self.chances_for_answer_role = 3
         self.chances_for_answer_riddle = 3
+
+    def similar(self, a, b):
+        return SequenceMatcher(None, a, b).ratio()
 
     # Events
     @commands.Cog.listener()
@@ -64,16 +69,31 @@ class Charada(commands.Cog):
     async def prize(self, ctx, cargo: str):
         if ctx.author == self.user_winner:
             if self.chances_for_answer_role > 0:
-                give_role = discord.utils.get(
-                    ctx.guild.roles, name=ctx.message)
-                await ctx.author.add_roles(give_role)
-                await ctx.send("Feito, miserával.")
-                self.chances_for_answer_role -= 1
-                await ctx.send(f"Otário, você tem mais {self.chances_for_answer_role} chances.")
+                try:
+                    for role in ctx.guild.roles:
+                        proxy_role = SequenceMatcher(
+                            None, cargo.lower(), str(role).lower()).ratio()
+                        if proxy_role > 0.5:
+                            estimate_role = str(role)
+                            break
+                    give_role = discord.utils.get(
+                        ctx.guild.roles, name=estimate_role)
+                    user = ctx.author
+                    await user.add_roles(give_role)
+                    await ctx.send("Feito, miserával.")
+                except:
+                    self.chances_for_answer_role -= 1
+                    await ctx.send(f"Otário, você tem mais {self.chances_for_answer_role} chances.")
             else:
                 self.user_winner = None
                 self.chances_for_answer_role = 3
                 await ctx.send("Você perdeu todas suas chances, palhaço.")
+
+    @commands.command()
+    async def Teste(self, ctx):
+        print(ctx.guild.roles)
+        for role in ctx.guild.roles:
+            print(role, type(role))
 
 
 def setup(client):
