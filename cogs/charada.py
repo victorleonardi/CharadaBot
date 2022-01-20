@@ -1,3 +1,4 @@
+from turtle import title
 import discord
 import asyncio
 from random import randint
@@ -20,6 +21,9 @@ class Charada(commands.Cog):
         ]
         self.list_of_riddles_used_in_the_month = []
         self.answer_riddle = ""
+        self.user_winner = None
+        self.chances_for_answer_role = 3
+        self.chances_for_answer_riddle = 3
 
     # Events
     @commands.Cog.listener()
@@ -27,6 +31,7 @@ class Charada(commands.Cog):
         print('Bot is online')
 
     # Commands
+    @commands.guild_only()
     @commands.command()
     async def charada(self, ctx):
         n = randint(0, (len(self.list_of_all_riddles) - 1))
@@ -36,20 +41,39 @@ class Charada(commands.Cog):
         self.list_of_all_riddles.remove(self.list_of_all_riddles[n])
         await ctx.send(text_riddle)
 
+    @commands.guild_only()
     @commands.command()
     async def resp(self, ctx, resposta: str):
         resposta = resposta.lower()
         print(self.answer_riddle)
         try:
             if resposta in self.answer_riddle:
-                # given_role = discord.utils.get(ctx.guild.roles, name=cargo)
-                # await ctx.author.add_roles(given_role)
+                self.user_winner = ctx.author
                 await ctx.send("Certo... Infeliz")
+                embed = discord.Embed(
+                    title="Cargos", description="Cargos que você pode escolher para ser promovido para \n" + '\n'.join([str(role.name) for role in ctx.guild.roles]))
+                await ctx.send(embed=embed)
             if resposta not in self.answer_riddle:
-                await ctx.send('Infelizmente, você errou...')
-                await ctx.send('Agora, me diga, qual cargo você deseja como recompensa?')
+                self.chances_for_answer_riddle -= 1
+                await ctx.send(f"Infelizmente, você errou... Você só tem mais {self.chances_for_answer_riddle} chances para acertar.")
         except:
             await ctx.send('Parece que você esqueceu alguma coisa para falar comigo, verme. Tente novamente')
+
+    @commands.guild_only()
+    @commands.command()
+    async def prize(self, ctx, cargo: str):
+        if ctx.author == self.user_winner:
+            if self.chances_for_answer_role > 0:
+                give_role = discord.utils.get(
+                    ctx.guild.roles, name=ctx.message)
+                await ctx.author.add_roles(give_role)
+                await ctx.send("Feito, miserával.")
+                self.chances_for_answer_role -= 1
+                await ctx.send(f"Otário, você tem mais {self.chances_for_answer_role} chances.")
+            else:
+                self.user_winner = None
+                self.chances_for_answer_role = 3
+                await ctx.send("Você perdeu todas suas chances, palhaço.")
 
 
 def setup(client):
